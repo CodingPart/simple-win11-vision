@@ -1,16 +1,19 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Search, ArrowLeft, ArrowRight, RotateCw, Home } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Browser = () => {
   const [url, setUrl] = useState("https://www.google.com");
   const [inputValue, setInputValue] = useState("https://www.google.com");
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [content, setContent] = useState("");
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const handleNavigate = (newUrl?: string) => {
+  const handleNavigate = async (newUrl?: string) => {
     const targetUrl = newUrl || inputValue.trim();
     let finalUrl = targetUrl;
     
@@ -27,6 +30,26 @@ export const Browser = () => {
     
     setUrl(finalUrl);
     setInputValue(finalUrl);
+    setIsLoading(true);
+
+    try {
+      // Call the proxy edge function
+      const { data, error } = await supabase.functions.invoke('proxy-browser', {
+        body: { url: finalUrl }
+      });
+
+      if (error) {
+        console.error('Error fetching URL:', error);
+        setContent(`<html><body><h1>Error loading page</h1><p>${error.message}</p></body></html>`);
+      } else {
+        setContent(data);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setContent(`<html><body><h1>Error loading page</h1><p>Could not load the requested page.</p></body></html>`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBack = () => {
@@ -56,6 +79,11 @@ export const Browser = () => {
       handleNavigate();
     }
   };
+
+  // Load initial page
+  useEffect(() => {
+    handleNavigate();
+  }, []);
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -111,13 +139,19 @@ export const Browser = () => {
 
       {/* Browser Content */}
       <div className="flex-1 relative">
-        <iframe
-          ref={iframeRef}
-          src={url}
-          className="w-full h-full border-0"
-          title="Browser"
-          sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
-        />
+        {isLoading ? (
+          <div className="w-full h-full flex items-center justify-center bg-background">
+            <div className="text-muted-foreground">Laden...</div>
+          </div>
+        ) : (
+          <iframe
+            ref={iframeRef}
+            srcDoc={content}
+            className="w-full h-full border-0"
+            title="Browser"
+            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+          />
+        )}
       </div>
     </div>
   );
