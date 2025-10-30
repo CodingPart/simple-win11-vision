@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Search, ArrowLeft, ArrowRight, RotateCw, Home } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,13 @@ import { Button } from "@/components/ui/button";
 export const Browser = () => {
   const [url, setUrl] = useState("https://www.google.com");
   const [inputValue, setInputValue] = useState("https://www.google.com");
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [canGoForward, setCanGoForward] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const handleNavigate = () => {
-    let finalUrl = inputValue.trim();
+  const handleNavigate = (newUrl?: string) => {
+    const targetUrl = newUrl || inputValue.trim();
+    let finalUrl = targetUrl;
     
     // Add https:// if no protocol specified
     if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
@@ -22,6 +26,29 @@ export const Browser = () => {
     }
     
     setUrl(finalUrl);
+    setInputValue(finalUrl);
+  };
+
+  const handleBack = () => {
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.history.back();
+    }
+  };
+
+  const handleForward = () => {
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.history.forward();
+    }
+  };
+
+  const handleRefresh = () => {
+    if (iframeRef.current) {
+      iframeRef.current.src = url;
+    }
+  };
+
+  const handleHome = () => {
+    handleNavigate("https://www.google.com");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -34,16 +61,38 @@ export const Browser = () => {
     <div className="h-full flex flex-col bg-background">
       {/* Browser Controls */}
       <div className="h-12 px-3 flex items-center gap-2 border-b border-border/50 bg-secondary/50">
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="h-8 w-8 p-0" 
+          onClick={handleBack}
+          disabled={!canGoBack}
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="h-8 w-8 p-0" 
+          onClick={handleForward}
+          disabled={!canGoForward}
+        >
           <ArrowRight className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="h-8 w-8 p-0"
+          onClick={handleRefresh}
+        >
           <RotateCw className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="h-8 w-8 p-0"
+          onClick={handleHome}
+        >
           <Home className="h-4 w-4" />
         </Button>
 
@@ -63,10 +112,11 @@ export const Browser = () => {
       {/* Browser Content */}
       <div className="flex-1 relative">
         <iframe
+          ref={iframeRef}
           src={url}
           className="w-full h-full border-0"
           title="Browser"
-          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+          sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
         />
       </div>
     </div>
